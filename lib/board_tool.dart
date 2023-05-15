@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:simple_board/board_widget.dart';
+import 'package:simple_board/main.dart';
 
 enum ToolKind {
   pointer,
@@ -8,6 +10,28 @@ enum ToolKind {
   line,
   oval,
   text,
+}
+
+class BoardManager extends ChangeNotifier {
+  var curTool = boardBarState.toolList[boardBarState.curSelected].toolKind;
+  Board? _lastBoard;
+  Board curBoard = const Board();
+  BoardManager._constructor() {
+    boardBarState.addListener(() {
+      curTool = boardBarState.toolList[boardBarState.curSelected].toolKind;
+    });
+  }
+
+  static final BoardManager _managerInstance = BoardManager._constructor();
+  static BoardManager get instance {
+    return _managerInstance;
+  }
+
+  var needClear = false;
+  void clearBoard() {
+    needClear = true;
+    notifyListeners();
+  }
 }
 
 abstract class BoardItem {

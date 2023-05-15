@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:simple_board/board_tool.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
+
+final boardBarState = BoardBarState();
 
 void main() {
   runApp(const BoardApp());
@@ -10,26 +14,23 @@ class BoardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Simple Board',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
+    return ChangeNotifierProvider(
+      create: (context) => boardBarState,
+      child: MaterialApp(
+        title: 'Simple Board',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+          useMaterial3: true,
+        ),
+        home: const BoardHomePage(),
       ),
-      home: const BoardHomePage(),
     );
   }
 }
 
-class BoardHomePage extends StatefulWidget {
-  const BoardHomePage({super.key});
-
-  @override
-  State<BoardHomePage> createState() => _BoardHomePageState();
-}
-
-class _BoardHomePageState extends State<BoardHomePage> {
+class BoardBarState extends ChangeNotifier {
   int curSelected = 0;
   final toolList = <BoardItem>[
     PointerItem(),
@@ -41,21 +42,34 @@ class _BoardHomePageState extends State<BoardHomePage> {
     TextItem()
   ];
 
-  @override
-  Widget build(BuildContext context) {
-    if (curSelected >= toolList.length) {
+  void changeCurSelected(int value) {
+    curSelected = value;
+    if (value < 0 || value >= toolList.length) {
       throw UnimplementedError('No operation defined for index $curSelected');
     }
+    notifyListeners();
+  }
+}
+
+class BoardHomePage extends StatelessWidget {
+  const BoardHomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final boardState = context.watch<BoardBarState>();
+    final curSelected = boardState.curSelected;
+    final toolList = boardState.toolList;
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.white,
         title: Row(
           children: [
             const Text(
               'Simple Board',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(width: 16.0),
+            const SizedBox(width: 10.0),
             Icon(
               Icons.color_lens,
               color: Theme.of(context).primaryColor,
@@ -63,6 +77,11 @@ class _BoardHomePageState extends State<BoardHomePage> {
           ],
         ),
         actions: <Widget>[
+          IconButton(
+            onPressed: () {BoardManager.instance.clearBoard();},
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete',
+          ),
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.undo),
@@ -80,29 +99,31 @@ class _BoardHomePageState extends State<BoardHomePage> {
           ),
         ],
       ),
-
-      body: Row(
-        children: [
-          NavigationRail(
-            extended: false,
-            destinations: [
-              for (var item in toolList)
-                NavigationRailDestination(
-                  icon: Icon(item.iconData),
-                  label: Text(item.toolName),
-                ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Row(
+            children: [
+              NavigationRail(
+                backgroundColor: Colors.white,
+                extended: constraints.maxWidth >= 850,
+                destinations: [
+                  for (var item in toolList)
+                    NavigationRailDestination(
+                      icon: Icon(item.iconData),
+                      label: Text(item.toolName),
+                    ),
+                ],
+                selectedIndex: curSelected,
+                onDestinationSelected: (value) {
+                  boardState.changeCurSelected(value);
+                },
+              ),
+              Expanded(
+                child: BoardManager.instance.curBoard,
+              ),
             ],
-            selectedIndex: curSelected,
-            onDestinationSelected: (value) {
-              setState(() {
-                curSelected = value;
-              });
-            },
-          ),
-          const Expanded(
-            child: Placeholder(),
-          ),
-        ],
+          );
+        }
       ),
     );
   }
