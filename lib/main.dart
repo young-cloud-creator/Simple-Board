@@ -34,12 +34,13 @@ class BoardBarState extends ChangeNotifier {
   int curSelected = 0;
   final toolList = <BoardItem>[
     PointerItem(),
+    PencilItem(),
     RectItem(),
     OvalItem(),
     TriangleItem(),
     CircleItem(),
     LineItem(),
-    TextItem()
+    TextItem(),
   ];
 
   void changeCurSelected(int value) {
@@ -78,12 +79,16 @@ class BoardHomePage extends StatelessWidget {
         ),
         actions: <Widget>[
           IconButton(
-            onPressed: () {BoardManager.instance.clearBoard();},
+            onPressed: () {
+              BoardManager.instance.clearBoard();
+            },
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Delete',
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              BoardManager.instance.tryUndo();
+            },
             icon: const Icon(Icons.undo),
             tooltip: 'Undo',
           ),
@@ -99,32 +104,30 @@ class BoardHomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Row(
-            children: [
-              NavigationRail(
-                backgroundColor: Colors.white,
-                extended: constraints.maxWidth >= 850,
-                destinations: [
-                  for (var item in toolList)
-                    NavigationRailDestination(
-                      icon: Icon(item.iconData),
-                      label: Text(item.toolName),
-                    ),
-                ],
-                selectedIndex: curSelected,
-                onDestinationSelected: (value) {
-                  boardState.changeCurSelected(value);
-                },
-              ),
-              Expanded(
-                child: BoardManager.instance.curBoard,
-              ),
-            ],
-          );
-        }
-      ),
+      body: LayoutBuilder(builder: (context, constraints) {
+        return Row(
+          children: [
+            NavigationRail(
+              backgroundColor: Colors.white,
+              extended: constraints.maxWidth >= 850,
+              destinations: [
+                for (var item in toolList)
+                  NavigationRailDestination(
+                    icon: Icon(item.iconData),
+                    label: Text(item.toolName),
+                  ),
+              ],
+              selectedIndex: curSelected,
+              onDestinationSelected: (value) {
+                boardState.changeCurSelected(value);
+              },
+            ),
+            Expanded(
+              child: BoardManager.instance.curBoard,
+            ),
+          ],
+        );
+      }),
     );
   }
 }

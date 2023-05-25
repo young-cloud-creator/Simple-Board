@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:simple_board/board_component.dart';
 import 'package:simple_board/board_widget.dart';
 import 'package:simple_board/main.dart';
 
@@ -10,15 +11,19 @@ enum ToolKind {
   line,
   oval,
   text,
+  pencil,
 }
 
 class BoardManager extends ChangeNotifier {
   var curTool = boardBarState.toolList[boardBarState.curSelected].toolKind;
-  Board? _lastBoard;
+  List<ShapeComponent>? lastState;
   Board curBoard = const Board();
   BoardManager._constructor() {
     boardBarState.addListener(() {
       curTool = boardBarState.toolList[boardBarState.curSelected].toolKind;
+      if (curTool == ToolKind.text) {
+        // TODO: Show a dialog to get text
+      }
     });
   }
 
@@ -31,6 +36,60 @@ class BoardManager extends ChangeNotifier {
   void clearBoard() {
     needClear = true;
     notifyListeners();
+  }
+
+  var undoLast = false;
+  void tryUndo() {
+    undoLast = true;
+    notifyListeners();
+  }
+
+  ShapeComponent? curComponent;
+  void onPanStart(Offset pos) {
+    ShapeComponent? newComponent;
+    switch (curTool) {
+      case ToolKind.pointer:
+        break;
+      case ToolKind.rectangle:
+        newComponent = RectComponent();
+        break;
+      case ToolKind.triangle:
+        newComponent = TriangleComponent();
+        break;
+      case ToolKind.circle:
+        newComponent = CircleComponent();
+        break;
+      case ToolKind.line:
+        newComponent = LineComponent();
+        break;
+      case ToolKind.oval:
+        newComponent = OvalComponent();
+        break;
+      case ToolKind.text:
+        newComponent = TextComponent();
+        break;
+      case ToolKind.pencil:
+        newComponent = PencilComponent();
+        break;
+    }
+
+    if (newComponent != null) {
+      newComponent.startBuild(pos);
+      curBoard.addShape(newComponent);
+      curComponent = newComponent;
+    }
+  }
+
+  void onPanUpdate(Offset pos) {
+    curComponent?.updateDst(pos);
+  }
+
+  void onPanEnd() {
+    if (curComponent != null) {
+      lastState = curBoard.cloneShapes();
+      lastState?.removeLast();
+      curComponent = null;
+    }
   }
 }
 
@@ -102,5 +161,14 @@ class TextItem extends BoardItem {
           const IconData(0xe680, fontFamily: 'sidebarIcon'),
           'Text',
           ToolKind.text,
+        );
+}
+
+class PencilItem extends BoardItem {
+  PencilItem()
+      : super(
+          Icons.edit_outlined,
+          'Pencil',
+          ToolKind.pencil,
         );
 }
