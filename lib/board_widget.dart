@@ -36,6 +36,10 @@ class Board extends StatefulWidget {
   void addShape(ShapeComponent component) {
     _BoardState.instance!.addShape(component);
   }
+
+  void addShapes(List<ShapeComponent> componentList) {
+    _BoardState.instance!.addShapes(componentList);
+  }
 }
 
 class _BoardState extends State<Board> {
@@ -62,10 +66,42 @@ class _BoardState extends State<Board> {
     }
     if (BoardManager.instance.needClear) {
       BoardManager.instance.needClear = false;
-      BoardManager.instance.lastState = getClonedShapes();
-      setState(() {
-        components.clear();
-      });
+      if (components.isNotEmpty) {
+        BoardManager.instance.lastState = getClonedShapes();
+        setState(() {
+          components.clear();
+        });
+      }
+    }
+    if (BoardManager.instance.needShowTextDialog) {
+      BoardManager.instance.needShowTextDialog = false;
+      showDialog(
+        context: context,
+        builder: (context) {
+          final textController = TextEditingController();
+          textController.text = BoardManager.instance.curText;
+          final textField = TextField(controller: textController);
+          return AlertDialog(
+            title: const Text("输入要插入的文本"),
+            content: textField,
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text("取消"),
+              ),
+              TextButton(
+                onPressed: () {
+                  BoardManager.instance.curText = textController.value.text;
+                  Navigator.pop(context);
+                },
+                child: const Text("确定"),
+              ),
+            ],
+          );
+        },
+      );
     }
   }
 
@@ -80,6 +116,12 @@ class _BoardState extends State<Board> {
   void addShape(ShapeComponent component) {
     setState(() {
       components.add(component);
+    });
+  }
+
+  void addShapes(List<ShapeComponent> componentList) {
+    setState(() {
+      components.addAll(componentList);
     });
   }
 
@@ -130,8 +172,22 @@ class BoardFgPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (Pointer.instance.exists()) {
+      Pointer.instance.draw(canvas, size);
+      var rangePoints = Pointer.instance.getPoints();
+      for (var shape in components) {
+        if (shape.isInRect(rangePoints.$1, rangePoints.$2)) {
+          shape.isSelected = true;
+        } else {
+          shape.isSelected = false;
+        }
+      }
+    }
     for (var shape in components) {
       shape.draw(canvas, size, foregroundPaint);
+      if (shape.isSelected) {
+        shape.drawBoundingBox(canvas, size);
+      }
     }
   }
 

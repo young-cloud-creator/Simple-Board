@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:simple_board/board_component.dart';
 import 'package:simple_board/board_widget.dart';
@@ -12,17 +14,25 @@ enum ToolKind {
   oval,
   text,
   pencil,
+  paste,
 }
 
 class BoardManager extends ChangeNotifier {
   var curTool = boardBarState.toolList[boardBarState.curSelected].toolKind;
   List<ShapeComponent>? lastState;
   Board curBoard = const Board();
+  final copiedComponents = <ShapeComponent>[];
+  final clonedComponents = <ShapeComponent>[];
+  Offset? originPos;
+  var needShowTextDialog = false;
+  var curText = "The quick brown fox jumps over the lazy dog";
+
   BoardManager._constructor() {
     boardBarState.addListener(() {
       curTool = boardBarState.toolList[boardBarState.curSelected].toolKind;
       if (curTool == ToolKind.text) {
-        // TODO: Show a dialog to get text
+        needShowTextDialog = true;
+        notifyListeners();
       }
     });
   }
@@ -49,6 +59,7 @@ class BoardManager extends ChangeNotifier {
     ShapeComponent? newComponent;
     switch (curTool) {
       case ToolKind.pointer:
+        Pointer.instance.startDrag(pos);
         break;
       case ToolKind.rectangle:
         newComponent = RectComponent();
@@ -67,9 +78,21 @@ class BoardManager extends ChangeNotifier {
         break;
       case ToolKind.text:
         newComponent = TextComponent();
+        (newComponent as TextComponent).setText(curText);
         break;
       case ToolKind.pencil:
         newComponent = PencilComponent();
+        break;
+      case ToolKind.paste:
+        clonedComponents.clear();
+        for (var shape in copiedComponents) {
+          var clonedShape = shape.deepCopy();
+          clonedComponents.add(clonedShape);
+          clonedShape.saveOldPos();
+          clonedShape.moveToNewPos(
+              Offset(pos.dx - originPos!.dx, pos.dy - originPos!.dy));
+        }
+        curBoard.addShapes(clonedComponents);
         break;
     }
 
@@ -82,13 +105,49 @@ class BoardManager extends ChangeNotifier {
 
   void onPanUpdate(Offset pos) {
     curComponent?.updateDst(pos);
+    if (curTool == ToolKind.pointer) {
+      Pointer.instance.updateDrag(pos);
+    } else if (curTool == ToolKind.paste) {
+      if (clonedComponents.isNotEmpty) {
+        for (var shape in clonedComponents) {
+          shape.moveToNewPos(
+              Offset(pos.dx - originPos!.dx, pos.dy - originPos!.dy));
+        }
+      }
+    }
   }
 
   void onPanEnd() {
     if (curComponent != null) {
       lastState = curBoard.cloneShapes();
-      lastState?.removeLast();
+      lastState!.removeLast();
       curComponent = null;
+    }
+    if (curTool == ToolKind.pointer) {
+      Pointer.instance.endDrag();
+    }
+    if (clonedComponents.isNotEmpty) {
+      lastState = curBoard.cloneShapes();
+      lastState!.removeRange(
+          lastState!.length - clonedComponents.length, lastState!.length);
+      clonedComponents.clear();
+    }
+  }
+
+  void tryCopy() {
+    copiedComponents.clear();
+    originPos = null;
+    final allComponents = curBoard.getShapes();
+    for (var shape in allComponents) {
+      if (shape.isSelected) {
+        copiedComponents.add(shape);
+        if (originPos == null) {
+          originPos = shape.topLeft;
+        } else {
+          originPos = Offset(min(originPos!.dx, shape.topLeft!.dx),
+              min(originPos!.dy, shape.topLeft!.dy));
+        }
+      }
     }
   }
 }
@@ -170,5 +229,14 @@ class PencilItem extends BoardItem {
           Icons.edit_outlined,
           'Pencil',
           ToolKind.pencil,
+        );
+}
+
+class PasteItem extends BoardItem {
+  PasteItem()
+      : super(
+          Icons.paste,
+          'Paste',
+          ToolKind.paste,
         );
 }

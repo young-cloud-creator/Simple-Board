@@ -41,6 +41,7 @@ class BoardBarState extends ChangeNotifier {
     CircleItem(),
     LineItem(),
     TextItem(),
+    PasteItem(),
   ];
 
   void changeCurSelected(int value) {
@@ -93,14 +94,11 @@ class BoardHomePage extends StatelessWidget {
             tooltip: 'Undo',
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              BoardManager.instance.tryCopy();
+            },
             icon: const Icon(Icons.copy),
             tooltip: 'Copy',
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.paste),
-            tooltip: 'Paste',
           ),
         ],
       ),
